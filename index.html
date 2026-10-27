@@ -4,121 +4,223 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#1d34c9">
-<title>Pass the Hits</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Rubik:wght@400;500;700&display=swap">
+<meta name="apple-mobile-web-app-title" content="Hit or Miss">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#23252f">
+<title>Hit or Miss</title>
 <style>
-/* Layout: one-screen phone app. Scoreboard strip, the mystery "single" card, then the active player's timeline as a vertical stack of record cards with drop slots. Single committed look: cobalt sleeve + paper cards. */
-:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
-  --sleeve:#1d34c9; --sleeve-deep:#13238f; --paper:#f6f3ff; --ink:#111430;
-  --sun:#ffd23f; --hot:#ff4f7b; --good:#2bd17e; --bad:#ff5a4e; --muted:#b9c2ff;
-  --display:"Big Shoulders Display", Impact, "Arial Narrow", sans-serif;
-  --body:"Rubik", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+/* Layout: one-screen phone app in the iOS idiom. Background = current player's colour with a soft top glow.
+   Frosted glass surfaces, white cards, large-title type, frosted sticky action bar. Timeline newest on top. */
+:root{padding-top:env(safe-area-inset-top,0px);
+  --bg:#23252f;                        /* set per player from JS */
+  --deep:color-mix(in srgb,var(--bg) 60%,#000);
+  --glass:rgba(255,255,255,.14); --glass-2:rgba(255,255,255,.22); --hair:rgba(255,255,255,.2);
+  --paper:#ffffff; --ink:#1d1d1f; --ink-soft:#6e6e73; --fg:#ffffff; --fg-soft:rgba(255,255,255,.74);
+  --coin:#ffd60a; --good:#25a55f; --bad:#ff453a;
+  --font:-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+  --gut:max(20px,env(safe-area-inset-left,0px));
   color-scheme:dark;
 }
-html,body{height:100%}
-body{background:var(--sleeve);color:var(--paper);font-family:var(--body);font-size:15px;line-height:1.4}
+html,body{height:100%;overflow:hidden}
+body{background-color:var(--bg);background-image:radial-gradient(130% 55% at 50% -12%,rgba(255,255,255,.24),rgba(255,255,255,0) 62%);background-repeat:no-repeat;color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.4;letter-spacing:-.01em;transition:background-color .5s ease;-webkit-tap-highlight-color:transparent;-webkit-font-smoothing:antialiased}
 *{box-sizing:border-box}
-button{font:inherit;cursor:pointer;border:0}
-button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
-.app{max-width:520px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 40px;display:flex;flex-direction:column;gap:16px}
-h1{font-family:var(--display);font-weight:900;font-size:44px;line-height:.9;letter-spacing:.01em;margin:0;text-transform:uppercase;text-wrap:balance}
-h2{font-family:var(--display);font-weight:900;font-size:30px;line-height:1;margin:0;text-transform:uppercase}
-.eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
-.sub{color:var(--muted);font-size:14px;margin:0}
+[hidden]{display:none!important}
+button{font:inherit;letter-spacing:inherit;cursor:pointer;border:0;color:inherit;background:none;padding:0}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.app{position:fixed;top:0;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;padding-left:var(--gut);padding-right:max(20px,env(safe-area-inset-right,0px));padding-top:calc(12px + env(safe-area-inset-top,0px));padding-bottom:0;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.app>*{flex-shrink:0}
+.eyebrow{font-size:13px;font-weight:600;color:var(--fg-soft)}
+.sub{color:var(--fg-soft);font-size:16px;margin:0;max-width:32ch}
+.coin{display:inline-block;width:.78em;height:.78em;border-radius:50%;background:var(--coin);box-shadow:inset 0 -1px 0 rgba(0,0,0,.18);vertical-align:-.04em;flex:0 0 auto}
+.glassy{background:var(--glass);-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%)}
 
 /* buttons */
-.btn{background:var(--paper);color:var(--ink);border-radius:999px;padding:13px 20px;font-weight:700;font-size:15px;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;min-height:48px}
-.btn.primary{background:var(--sun);color:var(--ink)}
-.btn.hot{background:var(--hot);color:#fff}
-.btn.ghost{background:transparent;color:var(--paper);box-shadow:inset 0 0 0 2px rgba(246,243,255,.45)}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-.btn.wide{width:100%}
-.row{display:flex;gap:10px;flex-wrap:wrap}
-.row>.btn{flex:1 1 140px}
+.btn{border-radius:999px;padding:0 22px;font-weight:600;font-size:17px;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;min-height:52px;background:var(--paper);color:var(--ink);text-align:center;line-height:1.2;transition:transform .12s ease,opacity .2s}
+.btn:active{transform:scale(.98)}
+.btn.soft{background:var(--glass);color:var(--fg)}
+.btn.small{min-height:40px;padding:0 16px;font-size:15px;font-weight:500}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.wide{width:100%}
+.linkish{color:var(--fg-soft);padding:10px;font-size:15px;align-self:center;text-decoration:none}
 
-/* setup */
-.panel{background:var(--sleeve-deep);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:12px}
-.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:rgba(0,0,0,.2);padding:5px;border-radius:14px}
-.seg button{background:transparent;color:var(--paper);padding:10px 4px;border-radius:10px;font-weight:700;font-size:14px}
-.seg button[aria-pressed="true"]{background:var(--paper);color:var(--ink)}
-.names{display:flex;flex-direction:column;gap:8px}
-.nameRow{display:flex;gap:8px}
-.nameRow input{flex:1;min-width:0;background:var(--paper);color:var(--ink);border:0;border-radius:12px;padding:12px 14px;font:inherit;font-size:16px}
-.nameRow button{background:rgba(0,0,0,.25);color:var(--paper);border-radius:12px;width:46px;font-size:20px}
-.stepper{display:flex;align-items:center;gap:12px}
-.stepper button{background:rgba(0,0,0,.25);color:var(--paper);border-radius:12px;width:44px;height:44px;font-size:22px}
-.stepper output{font-family:var(--display);font-weight:900;font-size:34px;min-width:44px;text-align:center}
-.rules{font-size:13.5px;color:var(--muted);margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
-.rules b{color:var(--paper)}
+/* frosted sticky action bar */
+.bar{margin-top:auto;padding-top:2px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:stretch;gap:4px}
+.cta{width:100%;min-height:60px;border-radius:999px;background:var(--paper);color:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 8px 0 26px;font-size:18px;font-weight:700;letter-spacing:-.015em;box-shadow:0 14px 34px -14px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.6) inset;transition:transform .12s ease,background .25s,color .25s,box-shadow .25s}
+.cta:active{transform:scale(.98)}
+.cta span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.cta .ctaIcon{flex:0 0 44px;height:44px;border-radius:50%;background:var(--bg);color:#fff;display:grid;place-items:center;transition:background .25s}
+.cta .ctaIcon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.cta .ctaIcon svg.fill{fill:currentColor;stroke:none}
+.cta:disabled{background:var(--glass);color:var(--fg-soft);box-shadow:none;cursor:not-allowed;transform:none}
+.cta:disabled .ctaIcon{background:var(--glass)}
+.cta.ready{animation:nudge 2.4s ease-in-out 1}
+@keyframes nudge{0%,100%{box-shadow:0 14px 34px -14px rgba(0,0,0,.55),0 0 0 0 rgba(255,255,255,.5)}40%{box-shadow:0 14px 34px -14px rgba(0,0,0,.55),0 0 0 8px rgba(255,255,255,0)}}
+.topBtns{display:flex;gap:6px;flex:0 0 auto}
+.quitBtn{flex:0 0 auto;height:36px;min-width:36px;border-radius:999px;background:var(--glass);font-size:15px;font-weight:600;padding:0 12px;transition:background .2s}
+.quitBtn.armed{background:var(--bad);color:#fff}
+.bar .why{font-size:13px;color:var(--fg-soft);text-align:center}
 
-/* scoreboard */
-.board{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+/* header */
+.top{display:flex;gap:10px;align-items:center}
+.board{flex:1;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;min-width:0;padding:1px}
 .board::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;background:var(--sleeve-deep);border-radius:12px;padding:7px 11px;display:flex;flex-direction:column;gap:2px;min-width:84px}
+.chip{flex:0 0 auto;background:var(--glass);border-radius:14px;padding:7px 12px;display:grid;grid-template-columns:auto 1fr;column-gap:7px;row-gap:1px;align-items:center;min-width:88px;transition:background .3s}
 .chip.on{background:var(--paper);color:var(--ink)}
-.chip .n{font-weight:700;font-size:13px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
-.chip .s{display:flex;gap:10px;font-size:12.5px;font-variant-numeric:tabular-nums;align-items:center}
-.tok{display:inline-block;width:11px;height:11px;border-radius:50%;background:var(--sun);box-shadow:inset 0 0 0 2px rgba(0,0,0,.25);vertical-align:-1px;margin-right:3px}
-.cardsIco{display:inline-block;width:9px;height:12px;border-radius:2px;background:currentColor;opacity:.8;vertical-align:-1px;margin-right:4px}
+.dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1.5px rgba(255,255,255,.95)}
+.chip .n{font-weight:600;font-size:14px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis}
+.chip .s{grid-column:1 / -1;display:flex;gap:10px;font-size:12.5px;font-variant-numeric:tabular-nums;opacity:.7;white-space:nowrap}
+.chip .s span{display:inline-flex;align-items:center;gap:4px}
+.help{flex:0 0 36px;height:36px;border-radius:50%;background:var(--glass);font-weight:600;font-size:17px}
 
-/* mystery card */
-.stage{display:flex;flex-direction:column;gap:12px}
-.mystery{position:relative;background:var(--ink);border-radius:20px;padding:18px;display:flex;gap:16px;align-items:center;overflow:hidden}
-.disc{flex:0 0 auto;width:86px;height:86px;border-radius:50%;background:
-  radial-gradient(circle at 50% 50%, var(--hot) 0 17%, var(--ink) 17.5% 20%, transparent 20.5%),
-  repeating-radial-gradient(circle at 50% 50%, #23264a 0 2px, #171a36 2px 4px);
-  box-shadow:0 0 0 3px #23264a}
-.disc.spin{animation:spin 1.8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.mystery .meta{min-width:0;display:flex;flex-direction:column;gap:6px}
-.mystery .q{font-family:var(--display);font-weight:900;font-size:56px;line-height:.85;color:var(--sun)}
-.mystery .hint{font-size:13px;color:var(--muted)}
-.reveal .q{color:var(--paper)}
-.songT{font-weight:700;font-size:17px;line-height:1.2;unicode-bidi:plaintext}
-.songA{font-size:14px;color:var(--muted);unicode-bidi:plaintext}
+/* turn head */
+.turnHead{display:flex;flex-direction:column;gap:4px}
+.stepbar{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:4px}
+.stepbar i{height:3px;border-radius:3px;background:var(--glass-2);transition:background .3s}
+.stepbar i.on{background:var(--paper)}
+h1,h2,.display{font-weight:700;letter-spacing:-.025em}
+h1{font-size:40px;line-height:1.02;margin:0}
+h2{font-size:28px;line-height:1.1;margin:0;overflow-wrap:anywhere}
+.instr{font-size:16px;line-height:1.4;margin:0;color:var(--fg-soft);max-width:30ch}
 
-.notice{background:rgba(0,0,0,.22);border-radius:14px;padding:12px 14px;font-size:14px;display:flex;flex-direction:column;gap:8px}
-.notice.good{background:color-mix(in srgb,var(--good) 25%,transparent)}
-.notice.bad{background:color-mix(in srgb,var(--bad) 25%,transparent)}
+/* record */
+.record{border-radius:26px;padding:20px 16px 14px;display:flex;flex-direction:column;gap:10px;align-items:center;text-align:center}
+.playBtn{flex:0 0 auto;width:88px;height:88px;border-radius:50%;background:var(--paper);color:var(--bg);display:grid;place-items:center;box-shadow:0 0 0 10px rgba(255,255,255,.12),0 16px 36px -14px rgba(0,0,0,.55);transition:transform .15s ease,box-shadow .3s ease}
+.playBtn:active{transform:scale(.94)}
+.playBtn svg{width:34px;height:34px;fill:currentColor}
+.playBtn[aria-label="Pause"]{box-shadow:0 0 0 14px rgba(255,255,255,.16),0 16px 36px -14px rgba(0,0,0,.55)}
+.playBtn:disabled{background:var(--glass-2);color:var(--fg-soft);box-shadow:none;cursor:default}
+.record .status{font-size:15px;color:var(--fg-soft);display:flex;align-items:center;justify-content:center;gap:8px;min-height:21px}
+.mdot{display:block;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle,#fff 0 14%,var(--bg) 15% 100%)}
+.eq{display:inline-flex;gap:2.5px;align-items:flex-end;height:13px}
+.eq i{width:3px;background:var(--fg);border-radius:2px;animation:eq .9s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:.15s}.eq i:nth-child(3){animation-delay:.3s}.eq i:nth-child(4){animation-delay:.45s}
+@keyframes eq{0%,100%{height:3px}50%{height:13px}}
+.songT{font-weight:600;font-size:17px;line-height:1.25;unicode-bidi:plaintext;overflow-wrap:anywhere}
+.songA{font-size:15px;color:var(--fg-soft);unicode-bidi:plaintext;overflow-wrap:anywhere}
+.songT,.songA{text-align:left}
+.tools,.fallback{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 /* timeline */
-.tlHead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-.timeline{display:flex;flex-direction:column;gap:0}
-.card{background:var(--paper);color:var(--ink);border-radius:14px;padding:10px 14px;display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center}
-.card .y{font-family:var(--display);font-weight:900;font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
-.card .t{min-width:0}
-.card .t .songT{font-size:14.5px}
-.card .t .songA{font-size:12.5px;color:#4b5180}
-.card.new{box-shadow:0 0 0 3px var(--sun)}
-.slot{display:flex;align-items:center;justify-content:center;min-height:14px;margin:3px 0}
-.slot button{width:100%;min-height:40px;border-radius:12px;background:transparent;color:var(--paper);box-shadow:inset 0 0 0 2px rgba(246,243,255,.35);border:0;font-weight:700;font-size:13px;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;gap:8px}
-.slot button:hover{box-shadow:inset 0 0 0 2px var(--paper)}
-.slot button.picked{background:var(--sun);color:var(--ink);box-shadow:none}
-.slot button.taken{background:var(--hot);color:#fff;box-shadow:none}
-.slot button.right{background:var(--good);color:var(--ink);box-shadow:none}
-.slot button:disabled{cursor:default}
-.slot .line{height:2px;width:100%;background:rgba(246,243,255,.18);border-radius:2px}
+.tlWrap{flex:1 1 auto!important;min-height:110px;display:flex;flex-direction:column;gap:8px}
+.tlHead{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.timeline{position:relative;flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:8px;padding:4px 0 14px;scrollbar-width:none;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 8px,#000 calc(100% - 22px),transparent);mask-image:linear-gradient(to bottom,transparent 0,#000 8px,#000 calc(100% - 22px),transparent)}
+.timeline::-webkit-scrollbar{display:none}
+.timeline>*{flex-shrink:0}
+.card{background:var(--paper);color:var(--ink);border-radius:18px;padding:13px 16px;display:flex;gap:14px;align-items:center;box-shadow:0 10px 28px -20px rgba(0,0,0,.6)}
+.card .y{flex:0 0 auto;font-weight:700;font-size:22px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em;min-width:2.9em}
+.card .t{flex:1;min-width:0}
+.card .songT{font-size:16px}
+.card .songA{font-size:14px;color:var(--ink-soft)}
+.card.mystery{box-shadow:inset 0 0 0 2px var(--bg),0 10px 28px -20px rgba(0,0,0,.6)}
+.card.mystery .y,.card.mystery .songA{color:var(--bg)}
+.card.mystery .songA{font-weight:600}
+.card.placed{box-shadow:inset 0 0 0 2px var(--good),0 10px 28px -20px rgba(0,0,0,.6)}
+.card.placed .y{color:var(--good)}
+.pill{flex:0 0 auto;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--good);color:#fff;white-space:nowrap}
+.gap{width:100%;min-height:44px;border-radius:14px;background:var(--glass);color:var(--fg);display:flex;align-items:center;justify-content:center;gap:8px;font-size:15px;font-weight:500;font-variant-numeric:tabular-nums;padding:6px 12px;text-align:center;transition:background .2s}
+button.gap:hover{background:var(--glass-2)}
+.gap .plus{width:20px;height:20px;border-radius:50%;background:var(--paper);color:var(--bg);display:grid;place-items:center;font-weight:700;font-size:15px;line-height:1;flex:0 0 auto}
+.gap.quiet{min-height:0;height:1px;padding:0;background:var(--hair);margin:3px 28px}
+.tag{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:14px;background:var(--glass);font-size:15px;font-weight:500}
+.tag .mark{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;flex:0 0 auto}
+.tag .mark.ok{background:var(--good)}.tag .mark.no{background:var(--bad)}.tag .mark.wait{background:var(--paper);color:var(--ink)}
+.tag span:last-child{min-width:0;overflow-wrap:anywhere}
 
-.steal{display:flex;flex-direction:column;gap:8px}
-.steal .who{display:flex;gap:8px;flex-wrap:wrap}
-.steal .who button{background:var(--paper);color:var(--ink);border-radius:999px;padding:10px 14px;font-weight:700;display:inline-flex;align-items:center;gap:6px}
-.steal .who button[aria-pressed="true"]{background:var(--hot);color:#fff}
-.steal .who button:disabled{opacity:.35}
+/* steal */
+.who{display:flex;gap:8px;flex-wrap:wrap}
+.who button{background:var(--glass);border-radius:999px;padding:0 16px 0 13px;min-height:44px;font-weight:600;display:inline-flex;align-items:center;gap:8px}
+.who button[aria-pressed="true"]{background:var(--paper);color:var(--ink)}
+.who button:disabled{opacity:.4;cursor:not-allowed}
+.note{font-size:15px;color:var(--fg-soft);margin:0;max-width:36ch}
 
-.win{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;padding-top:30px}
-.win .big{font-family:var(--display);font-weight:900;font-size:76px;line-height:.85;color:var(--sun);text-transform:uppercase;text-wrap:balance}
-.linkish{background:none;color:var(--muted);text-decoration:underline;padding:6px;font-size:13px}
-@media (prefers-reduced-motion:reduce){.disc.spin{animation:none}}
+/* result */
+.result{background:var(--paper);color:var(--ink);border-radius:24px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 40px -24px rgba(0,0,0,.6)}
+.result .verdict{display:flex;align-items:center;gap:12px}
+.result .badge{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:19px;font-weight:700;color:#fff;flex:0 0 auto}
+.result .badge.ok{background:var(--good)}.result .badge.no{background:var(--bad)}.result .badge.st{background:var(--ink)}
+.result .verdict b{font-weight:700;font-size:22px;line-height:1.1;letter-spacing:-.02em;display:block}
+.result .verdict span{font-size:15px;color:var(--ink-soft)}
+.result .song{display:flex;gap:14px;align-items:center;padding-top:12px;border-top:.5px solid #d9d9de}
+.result .song .y{font-weight:700;font-size:34px;line-height:1;letter-spacing:-.035em;color:var(--bg);flex:0 0 auto;font-variant-numeric:tabular-nums}
+.result .song .songA{color:var(--ink-soft)}
+.result .song>div{min-width:0}
+.ask{display:flex;flex-direction:column;gap:8px}
+.inlineLink{display:inline-block;margin-top:3px;font-size:13.5px;font-weight:600;color:var(--bg);text-decoration:none}
+.ask p{margin:0;font-size:15px;color:var(--fg-soft)}
+.choice{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.choice button{min-height:46px;border-radius:999px;background:var(--glass);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:background .2s}
+.choice button[aria-pressed="true"]{background:var(--paper);color:var(--ink)}
+
+/* setup */
+.setupHero{display:flex;flex-direction:column;gap:10px;padding-top:4px}
+.heroTop{display:flex;justify-content:space-between;align-items:center}
+.grow{flex:1 1 auto!important;min-height:0}
+.section.grow{display:flex;flex-direction:column}
+.scrolly{overflow-y:auto;min-height:0;overscroll-behavior:contain}
+.stepCtl{display:flex;align-items:center;gap:12px}
+.vinyls{display:flex}
+.vinyls i{width:30px;height:30px;border-radius:50%;margin-right:-8px;background:radial-gradient(circle,#fff 0 13%,var(--c) 14% 100%);box-shadow:0 0 0 2.5px var(--bg)}
+.section{display:flex;flex-direction:column;gap:10px}
+.group{background:var(--glass);border-radius:20px;padding:6px;display:flex;flex-direction:column}
+.group .nameRow+.nameRow{border-top:.5px solid var(--hair)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--glass);padding:3px;border-radius:14px}
+.seg button{padding:9px 4px;border-radius:11px;font-weight:600;font-size:15px;line-height:1.2;display:flex;flex-direction:column;align-items:center;gap:1px;transition:background .2s}
+.seg button small{font-weight:400;font-size:12px;opacity:.7}
+.seg button[aria-pressed="true"]{background:var(--paper);color:var(--ink);box-shadow:0 3px 10px -4px rgba(0,0,0,.4)}
+.nameRow{display:flex;gap:10px;align-items:center;padding:6px 6px 6px 8px}
+.swatch{flex:0 0 30px;height:30px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px rgba(255,255,255,.9)}
+.nameRow input{flex:1;min-width:0;background:transparent;color:var(--fg);border:0;padding:0 4px;height:40px;font:inherit;font-size:17px}
+.nameRow input:focus{outline:none}
+.nameRow input::placeholder{color:var(--fg-soft)}
+.iconBtn{flex:0 0 32px;height:32px;border-radius:50%;background:var(--glass);font-size:18px;line-height:1}
+.iconBtn:disabled{opacity:.25}
+.addRow{padding:12px 10px;color:var(--fg);font-weight:500;text-align:left;border-top:.5px solid var(--hair)}
+
+/* pass + win */
+.center{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:12px;padding-block:28px}
+.bigName{font-weight:700;font-size:clamp(52px,16vw,84px);line-height:1;letter-spacing:-.04em;overflow-wrap:anywhere;max-width:100%}
+.stats{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.stats span{background:var(--glass);border-radius:999px;padding:7px 14px;font-size:15px;display:inline-flex;align-items:center;gap:6px}
+.stats b{font-variant-numeric:tabular-nums;font-weight:600}
+.disc{width:150px;height:150px;border-radius:50%;margin-bottom:10px;background:radial-gradient(circle,var(--paper) 0 5%,var(--bg) 5.5% 18%,transparent 18.5%),repeating-radial-gradient(circle,#1d1e26 0 1.5px,#121318 1.5px 3px);box-shadow:0 30px 60px -28px rgba(0,0,0,.7)}
+.disc.small{width:96px;height:96px;margin:0 0 4px}
+.spin{animation:spin 2.4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* rules sheet */
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.sheet .inner{background:var(--paper);color:var(--ink);width:100%;max-width:480px;border-radius:28px 28px 0 0;padding:26px max(22px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left,0px));max-height:88%;overflow:auto;display:flex;flex-direction:column;gap:16px}
+.sheet h3{font-weight:700;font-size:28px;letter-spacing:-.025em;margin:0}
+.sheet ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:9px;font-size:16px;color:#3a3a3c}
+.sheet .tokRules{background:#f2f2f7;border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;font-size:15px;color:#3a3a3c}
+.sheet .tokRules b{display:flex;align-items:center;gap:6px;color:var(--ink)}
+.sheet .btn{background:var(--ink);color:#fff}
+@media (max-height:760px){
+  .app{gap:10px}
+  h2{font-size:24px}
+  .instr{font-size:15px}
+  .record{flex-direction:row;padding:12px 16px;gap:14px;text-align:left;border-radius:22px}
+  .record .status{justify-content:flex-start}
+  .playBtn{width:62px;height:62px;box-shadow:0 0 0 6px rgba(255,255,255,.12),0 10px 24px -12px rgba(0,0,0,.55)}
+  .playBtn[aria-label="Pause"]{box-shadow:0 0 0 9px rgba(255,255,255,.16),0 10px 24px -12px rgba(0,0,0,.55)}
+  .playBtn svg{width:26px;height:26px}
+  .btn.small{min-height:36px;font-size:14px}
+  .btn{min-height:48px}
+  .cta{min-height:54px;font-size:17px}
+  .cta .ctaIcon{flex-basis:40px;height:40px}
+  .result{padding:14px;gap:10px}
+  .result .song{padding-top:10px}
+  .choice button{min-height:42px}
+}
+@media (prefers-reduced-motion:reduce){.spin,.eq i{animation:none}body{transition:none}}
 </style>
 </head>
 <body style="margin:0">
 
 <div class="app" id="app"></div>
+<div class="sheet" id="sheet" hidden></div>
 
 <script>
-// ---------- Songs (title, artist, original release year) ----------
 const GLOBAL = [
 ["Rock Around the Clock","Bill Haley & His Comets",1954],["Heartbreak Hotel","Elvis Presley",1956],["Jailhouse Rock","Elvis Presley",1957],["Johnny B. Goode","Chuck Berry",1958],
 ["Stand By Me","Ben E. King",1961],["Can't Help Falling in Love","Elvis Presley",1961],["Twist and Shout","The Beatles",1963],["I Want to Hold Your Hand","The Beatles",1963],
@@ -159,34 +261,123 @@ const ISRAELI = [
 ];
 // "Kan" is credited to Duo Datz; keep the Hebrew name readable
 ISRAELI[18][1]="דואו דאץ";
+GLOBAL.push(...[
+// 1950s
+["Only You (And You Alone)","The Platters",1955],["Tutti Frutti","Little Richard",1955],["Hound Dog","Elvis Presley",1956],["Blue Suede Shoes","Carl Perkins",1956],
+["Great Balls of Fire","Jerry Lee Lewis",1957],["Peggy Sue","Buddy Holly",1957],["Diana","Paul Anka",1957],["La Bamba","Ritchie Valens",1958],
+["Volare (Nel blu dipinto di blu)","Domenico Modugno",1958],["Fever","Peggy Lee",1958],["Summertime Blues","Eddie Cochran",1958],["What'd I Say","Ray Charles",1959],
+// 1960s
+["The Twist","Chubby Checker",1960],["Hit the Road Jack","Ray Charles",1961],["Be My Baby","The Ronettes",1963],["Oh, Pretty Woman","Roy Orbison",1964],
+["The House of the Rising Sun","The Animals",1964],["You've Lost That Lovin' Feelin'","The Righteous Brothers",1964],["Yesterday","The Beatles",1965],["Help!","The Beatles",1965],
+["Like a Rolling Stone","Bob Dylan",1965],["Unchained Melody","The Righteous Brothers",1965],["Mr. Tambourine Man","The Byrds",1965],["California Dreamin'","The Mamas & the Papas",1965],
+["Paint It Black","The Rolling Stones",1966],["These Boots Are Made for Walkin'","Nancy Sinatra",1966],["Ain't No Mountain High Enough","Marvin Gaye & Tammi Terrell",1967],["All You Need Is Love","The Beatles",1967],
+["A Whiter Shade of Pale","Procol Harum",1967],["Somebody to Love","Jefferson Airplane",1967],["Brown Eyed Girl","Van Morrison",1967],["(Sittin' On) The Dock of the Bay","Otis Redding",1968],
+["Mrs. Robinson","Simon & Garfunkel",1968],["Born to Be Wild","Steppenwolf",1968],["All Along the Watchtower","The Jimi Hendrix Experience",1968],["Proud Mary","Creedence Clearwater Revival",1969],
+["Space Oddity","David Bowie",1969],["Aquarius/Let the Sunshine In","The 5th Dimension",1969],["Come Together","The Beatles",1969],["Honky Tonk Women","The Rolling Stones",1969],["Sugar, Sugar","The Archies",1969],
+// 1970s
+["Let It Be","The Beatles",1970],["ABC","The Jackson 5",1970],["Your Song","Elton John",1970],["Paranoid","Black Sabbath",1970],["Lola","The Kinks",1970],
+["Stairway to Heaven","Led Zeppelin",1971],["American Pie","Don McLean",1971],["Brown Sugar","The Rolling Stones",1971],["Take Me Home, Country Roads","John Denver",1971],["Let's Stay Together","Al Green",1971],
+["Lean on Me","Bill Withers",1972],["Heart of Gold","Neil Young",1972],["Smoke on the Water","Deep Purple",1972],["Crocodile Rock","Elton John",1972],
+["Piano Man","Billy Joel",1973],["Killing Me Softly with His Song","Roberta Flack",1973],["Let's Get It On","Marvin Gaye",1973],
+["Sweet Home Alabama","Lynyrd Skynyrd",1974],["Kung Fu Fighting","Carl Douglas",1974],["Mamma Mia","ABBA",1975],["Love Will Keep Us Together","Captain & Tennille",1975],
+["Wish You Were Here","Pink Floyd",1975],["Fame","David Bowie",1975],["Don't Go Breaking My Heart","Elton John & Kiki Dee",1976],["Dreams","Fleetwood Mac",1977],
+["We Will Rock You","Queen",1977],["I Feel Love","Donna Summer",1977],["Y.M.C.A.","Village People",1978],["September","Earth, Wind & Fire",1978],["Roxanne","The Police",1978],
+["Rivers of Babylon","Boney M.",1978],["Rasputin","Boney M.",1978],["Sultans of Swing","Dire Straits",1978],["London Calling","The Clash",1979],
+["Video Killed the Radio Star","The Buggles",1979],["Don't Stop 'Til You Get Enough","Michael Jackson",1979],["Hot Stuff","Donna Summer",1979],["Gimme! Gimme! Gimme! (A Man After Midnight)","ABBA",1979],
+["Rapper's Delight","The Sugarhill Gang",1979],["I Was Made for Lovin' You","KISS",1979],["Ring My Bell","Anita Ward",1979],
+// 1980s
+["Another One Bites the Dust","Queen",1980],["Call Me","Blondie",1980],["Back in Black","AC/DC",1980],["Upside Down","Diana Ross",1980],["Celebration","Kool & the Gang",1980],
+["Don't Stop Believin'","Journey",1981],["Tainted Love","Soft Cell",1981],["Physical","Olivia Newton-John",1981],["Eye of the Tiger","Survivor",1982],["Ebony and Ivory","Paul McCartney & Stevie Wonder",1982],
+["Come On Eileen","Dexys Midnight Runners",1982],["Karma Chameleon","Culture Club",1983],["Flashdance... What a Feeling","Irene Cara",1983],["When Doves Cry","Prince",1984],
+["Footloose","Kenny Loggins",1984],["Wake Me Up Before You Go-Go","Wham!",1984],["Like a Virgin","Madonna",1984],["Born in the U.S.A.","Bruce Springsteen",1984],
+["Careless Whisper","George Michael",1984],["Last Christmas","Wham!",1984],["Ghostbusters","Ray Parker Jr.",1984],["Radio Ga Ga","Queen",1984],["I Just Called to Say I Love You","Stevie Wonder",1984],
+["We Are the World","USA for Africa",1985],["Money for Nothing","Dire Straits",1985],["Everybody Wants to Rule the World","Tears for Fears",1985],["Running Up That Hill","Kate Bush",1985],
+["The Final Countdown","Europe",1986],["Walk Like an Egyptian","The Bangles",1986],["Papa Don't Preach","Madonna",1986],["Never Gonna Give You Up","Rick Astley",1987],
+["With or Without You","U2",1987],["I Wanna Dance with Somebody","Whitney Houston",1987],["Here I Go Again","Whitesnake",1987],["Don't Worry, Be Happy","Bobby McFerrin",1988],
+["Fast Car","Tracy Chapman",1988],["Lambada","Kaoma",1989],["Another Day in Paradise","Phil Collins",1989],
+// 1990s
+["Nothing Compares 2 U","Sinéad O'Connor",1990],["Ice Ice Baby","Vanilla Ice",1990],["U Can't Touch This","MC Hammer",1990],["Black or White","Michael Jackson",1991],
+["(Everything I Do) I Do It for You","Bryan Adams",1991],["Enter Sandman","Metallica",1991],["Under the Bridge","Red Hot Chili Peppers",1992],["Jump Around","House of Pain",1992],
+["Rhythm Is a Dancer","Snap!",1992],["All That She Wants","Ace of Base",1992],["What Is Love","Haddaway",1993],["Mr. Jones","Counting Crows",1993],["Linger","The Cranberries",1993],
+["Basket Case","Green Day",1994],["Waterfalls","TLC",1995],["Gangsta's Paradise","Coolio feat. L.V.",1995],["You Oughta Know","Alanis Morissette",1995],["Children","Robert Miles",1995],
+["No Diggity","Blackstreet",1996],["Killing Me Softly","Fugees",1996],["Don't Look Back in Anger","Oasis",1996],["Freed from Desire","Gala",1996],
+["MMMBop","Hanson",1997],["Barbie Girl","Aqua",1997],["Everybody (Backstreet's Back)","Backstreet Boys",1997],["My Heart Will Go On","Céline Dion",1997],
+["Tubthumping","Chumbawamba",1997],["Song 2","Blur",1997],["Ray of Light","Madonna",1998],["Iris","Goo Goo Dolls",1998],
+["Genie in a Bottle","Christina Aguilera",1999],["Livin' la Vida Loca","Ricky Martin",1999],["Mambo No. 5","Lou Bega",1999],["Scar Tissue","Red Hot Chili Peppers",1999],["I Want It That Way","Backstreet Boys",1999],
+// 2000s
+["Oops!... I Did It Again","Britney Spears",2000],["It Wasn't Me","Shaggy feat. Rikrok",2000],["Ms. Jackson","OutKast",2000],["Survivor","Destiny's Child",2001],
+["Can't Get You Out of My Head","Kylie Minogue",2001],["Lady Marmalade","Christina Aguilera, Lil' Kim, Mýa & P!nk",2001],["Lose Yourself","Eminem",2002],["Complicated","Avril Lavigne",2002],
+["In da Club","50 Cent",2003],["Where Is the Love?","Black Eyed Peas",2003],["Since U Been Gone","Kelly Clarkson",2004],["Boulevard of Broken Dreams","Green Day",2004],
+["Feel Good Inc.","Gorillaz",2005],["Hollaback Girl","Gwen Stefani",2005],["Gold Digger","Kanye West feat. Jamie Foxx",2005],["SexyBack","Justin Timberlake",2006],
+["Chasing Cars","Snow Patrol",2006],["Irreplaceable","Beyoncé",2006],["Apologize","Timbaland feat. OneRepublic",2007],["Low","Flo Rida feat. T-Pain",2007],
+["Use Somebody","Kings of Leon",2008],["I Kissed a Girl","Katy Perry",2008],["Mercy","Duffy",2008],["Party in the U.S.A.","Miley Cyrus",2009],["Bad Romance","Lady Gaga",2009],
+["Empire State of Mind","Jay-Z & Alicia Keys",2009],["Tik Tok","Kesha",2009],
+// 2010s
+["Firework","Katy Perry",2010],["Just the Way You Are","Bruno Mars",2010],["Waka Waka (This Time for Africa)","Shakira",2010],["Pumped Up Kicks","Foster the People",2010],
+["Party Rock Anthem","LMFAO",2011],["Moves like Jagger","Maroon 5 feat. Christina Aguilera",2011],["We Found Love","Rihanna feat. Calvin Harris",2011],["We Are Young","fun. feat. Janelle Monáe",2011],
+["Titanium","David Guetta feat. Sia",2011],["Thrift Shop","Macklemore & Ryan Lewis",2012],["Radioactive","Imagine Dragons",2012],["Diamonds","Rihanna",2012],
+["Royals","Lorde",2013],["Wake Me Up","Avicii",2013],["Let It Go","Idina Menzel",2013],["All of Me","John Legend",2013],["Counting Stars","OneRepublic",2013],["Take Me to Church","Hozier",2013],
+["Thinking Out Loud","Ed Sheeran",2014],["Shut Up and Dance","Walk the Moon",2014],["Hello","Adele",2015],["Can't Feel My Face","The Weeknd",2015],["Lean On","Major Lazer & DJ Snake feat. MØ",2015],
+["Sorry","Justin Bieber",2015],["Hotline Bling","Drake",2015],["Cheap Thrills","Sia",2016],["One Dance","Drake feat. Wizkid & Kyla",2016],["Closer","The Chainsmokers feat. Halsey",2016],
+["Havana","Camila Cabello feat. Young Thug",2017],["Believer","Imagine Dragons",2017],["Perfect","Ed Sheeran",2017],["God's Plan","Drake",2018],["Shallow","Lady Gaga & Bradley Cooper",2018],
+["Someone You Loved","Lewis Capaldi",2018],["Señorita","Shawn Mendes & Camila Cabello",2019],["Don't Start Now","Dua Lipa",2019],
+// 2020s
+["Savage Love","Jawsh 685 & Jason Derulo",2020],["Dynamite","BTS",2020],["Mood","24kGoldn feat. iann dior",2020],["Heat Waves","Glass Animals",2020],
+["good 4 u","Olivia Rodrigo",2021],["Easy On Me","Adele",2021],["Montero (Call Me by Your Name)","Lil Nas X",2021],["Bad Habits","Ed Sheeran",2021],
+["About Damn Time","Lizzo",2022],["Unholy","Sam Smith & Kim Petras",2022],["Calm Down","Rema & Selena Gomez",2022],["Tití Me Preguntó","Bad Bunny",2022],["Kill Bill","SZA",2022],
+["vampire","Olivia Rodrigo",2023],["Paint the Town Red","Doja Cat",2023],["greedy","Tate McRae",2023],["Lose Control","Teddy Swims",2023],
+["Texas Hold 'Em","Beyoncé",2024],["Too Sweet","Hozier",2024],["Not Like Us","Kendrick Lamar",2024],["Beautiful Things","Benson Boone",2024],["Good Luck, Babe!","Chappell Roan",2024],
+["Die with a Smile","Lady Gaga & Bruno Mars",2024],["Abracadabra","Lady Gaga",2025],["Ordinary","Alex Warren",2025],["The Fate of Ophelia","Taylor Swift",2025]
+]);
+ISRAELI.push(...[
+// Annual Hebrew chart "song of the year" winners
+["על כפיו יביא","רבקה זוהר",1969],["פתאום עכשיו, פתאום היום","שלמה ארצי",1970],["מתוק מתוק","להקת פיקוד הצפון",1971],["היום היום","שלישיית פיקוד מרכז",1972],
+["המגפיים של ברוך","כוורת",1973],["גוליית","כוורת",1975],["רוצי שמוליק","אריאל זילבר",1976],["סליחות","יהודית רביץ",1977],["נאסף תשרי","צביקה פיק",1978],
+["גלגל ענק","חלב ודבש",1980],["לראות אותה היום","תיסלם",1981],["יום שישי","בנזין",1982],["תרקוד","שלמה ארצי",1984],["אנחנו נשארים בארץ","כמו צועני",1985],
+["באה מאהבה","יהודית רביץ",1987],["מצטער","אדם",1988],["ריקוד המכונה","משינה",1989],["ציירי לך שפם","נוער שוליים",1990],["הקיץ האחרון","שפיות זמנית",1991],
+["אהבה קצרה","מאיר בנאי",1992],["ג'סיקה","אתניקס",1993],["האם להיות בך מאוהב","אביב גפן",1994],["תפוחים ותמרים","רמי קלינשטיין",1995],["שניים","שלמה ארצי וריטה",1996],
+["כל מה שתרצי","רמי קלינשטיין",1997],["דמעות","אייל גולן",1998],["זה כל הקסם","נמרוד לב ואורלי פרל",1999],["לכל אחד יש","שלומי שבת וליאור נרקיס",2000],
+["יאללה לך הביתה מוטי","שרית חדד",2001],["אם תלך","הפרויקט של עידן רייכל",2003],["יום ועוד יומיים","שי גבסו",2004],["ואת","הראל סקעת",2006],
+["עכשיו אתה חוזר בחזרה","מירי מסיקה",2007],["הוזה אותך מולי","אייל גולן",2008],["זה אני","אייל גולן",2009],["תגידו לה","דודו אהרון",2010],["כאב של לוחמים","עידן עמדי",2011],
+["זיקוקים","משה פרץ",2012],["נגמר","עידן עמדי",2013],["תרגיל בהתעוררות","שלומי שבן וחוה אלברשטיין",2014],["סלסולים","סטטיק ובן אל תבורי",2016],["תבואי היום","אייל גולן",2017],
+["חרבו דרבו","נס וסטילה",2023],["גיבורי על","התקווה 6",2024],
+// Eurovision entries
+["אמור שלום","שוקולד מנטה מסטיק",1976],["אהבה היא שיר לשניים","אילנית",1977],["הלילה","הכל עובר חביבי",1981],["יבוא יום","מוטי גלעדי ושרי צוריאל",1986],
+["בן אדם","ירדנה ארזי",1988],["דרך המלך","גילי וגלית",1989],["שירו","להקת שירו",1993],["אמן","ליאורה",1995],["Happy Birthday","עדן",1999],["שמח","פינג פונג",2000],
+["אין דבר","טל סונדק",2001],["Words for Love","ליאור נרקיס",2003],["להאמין","דוד ד'אור",2004],["Together We Are One","אדי בטלר",2006],
+["There Must Be Another Way","נועה ומירה עווד",2009],["Ding Dong","דנה אינטרנשיונל",2011],["Time","איזבו",2012],["רק בשבילו","מורן מזור",2013],["Same Heart","מיי פיינגולד",2014]
+]);
+ISRAELI.forEach(s=>{ if(s[0]==="שביל הבריחה") s[2]=1986; });
 
 const SONGS = [...GLOBAL.map(s=>({t:s[0],a:s[1],y:s[2],p:"g"})), ...ISRAELI.map(s=>({t:s[0],a:s[1],y:s[2],p:"i"}))];
 const PACK_LABEL={g:"Global",i:"Israeli",m:"Mixed"};
+const COLORS=["#2f5be6","#e2473d","#1d8f5a","#7b4fe0","#d23d7d","#118499","#cf6410","#3b3f52"];
+const HOME_BG="#23252f";
 
 // ---------- State ----------
-const KEY="passthehits.v1";
+const KEY="passthehits.v3";
 let S = load() || freshSetup();
-function freshSetup(){return {screen:"setup",names:["Dean","Noa"],pack:"m",target:10}}
+function freshSetup(){return {screen:"setup",roster:[{name:"Dean",c:0},{name:"Noa",c:1}],pack:"m",target:10}}
 function load(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
-
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 const song=i=>SONGS[i];
 const sortTL=tl=>tl.sort((a,b)=>song(a).y-song(b).y);
+const inPack=i=>S.pack==="m"||song(i).p===S.pack;
+const keep=()=>({roster:S.roster,pack:S.pack,target:S.target});
 
 function startGame(){
-  const names=S.names.map(n=>n.trim()).filter(Boolean);
-  if(names.length<2) return;
-  let deck=SONGS.map((_,i)=>i).filter(i=>S.pack==="m"||song(i).p===S.pack);
-  shuffle(deck);
-  const players=names.map(n=>({name:n,cards:[deck.pop()],tokens:2}));
-  S={screen:"game",pack:S.pack,target:S.target,names:S.names,players,deck,turn:0,phase:"listen",current:deck.pop(),pick:null,challenges:[],pickingFor:null,result:null,played:false};
+  const roster=S.roster.map(r=>({...r,name:r.name.trim()})).filter(r=>r.name);
+  if(roster.length<2) return;
+  const deck=shuffle(SONGS.map((_,i)=>i).filter(inPack));
+  const players=roster.map(r=>({name:r.name,c:r.c,cards:[deck.pop()],tokens:2}));
+  S={...keep(),screen:"game",players,deck,turn:0,phase:"pass",current:deck.pop(),pick:null,challenges:[],pickingFor:null,result:null,played:false};
   save();render();
 }
 function drawNext(){
-  if(!S.deck.length){ // reshuffle songs not in any timeline
+  if(!S.deck.length){
     const used=new Set(S.players.flatMap(p=>p.cards)); used.add(S.current);
-    S.deck=shuffle(SONGS.map((_,i)=>i).filter(i=>!used.has(i)&&(S.pack==="m"||song(i).p===S.pack)));
+    S.deck=shuffle(SONGS.map((_,i)=>i).filter(i=>!used.has(i)&&inPack(i)));
   }
   S.current=S.deck.pop();
 }
@@ -194,47 +385,49 @@ function slotOK(tl,k,y){
   const prev=k>0?song(tl[k-1]).y:-Infinity, next=k<tl.length?song(tl[k]).y:Infinity;
   return prev<=y&&y<=next;
 }
-function lockIn(){S.phase="challenge";save();render()}
+const anyStealers=()=>S.players.some((p,i)=>i!==S.turn&&p.tokens>0);
+
+function startTurn(){S.phase="listen";save();render();scrollTo(0,0)}
+function lockIn(){if(S.pick===null)return; if(anyStealers()){S.phase="steal";save();render();scrollTo(0,0)} else reveal()}
 function reveal(){
+  stopAudio();
   const P=S.players[S.turn], y=song(S.current).y;
   const okActive=slotOK(P.cards,S.pick,y);
   let winner=null;
-  if(okActive){winner=S.turn}
-  else{for(const c of S.challenges){if(slotOK(P.cards,c.slot,y)){winner=c.p;break}}}
+  if(okActive) winner=S.turn;
+  else for(const c of S.challenges){if(slotOK(P.cards,c.slot,y)){winner=c.p;break}}
+  S.result={winner,okActive,named:null,before:[...P.cards]};
   if(winner!==null){S.players[winner].cards.push(S.current);sortTL(S.players[winner].cards)}
-  S.result={winner,okActive,named:false};
-  S.phase="reveal";save();render();
+  S.phase="reveal";save();render();scrollTo(0,0);
 }
-function nextTurn(){stopAudio();
+function nextTurn(){
+  stopAudio();
   if(S.result&&S.result.named){const P=S.players[S.turn];P.tokens=Math.min(5,P.tokens+1)}
   const w=S.players.find(p=>p.cards.length>=S.target);
-  if(w){S.screen="win";S.winnerName=w.name;save();render();return}
-  S.turn=(S.turn+1)%S.players.length;
-  drawNext();
-  Object.assign(S,{phase:"listen",pick:null,challenges:[],pickingFor:null,result:null,played:false});
-  save();render();window.scrollTo({top:0,behavior:"instant"});
+  if(w){S.screen="win";S.winner=S.players.indexOf(w);save();render();return}
+  S.turn=(S.turn+1)%S.players.length; drawNext();
+  Object.assign(S,{phase:"pass",pick:null,challenges:[],pickingFor:null,result:null,played:false});
+  save();render();scrollTo(0,0);
 }
-function skipSong(){stopAudio();const P=S.players[S.turn];if(P.tokens<1)return;P.tokens--;drawNext();S.pick=null;S.played=false;save();render()}
-function buyCard(){stopAudio();
-  const P=S.players[S.turn];if(P.tokens<3)return;P.tokens-=3;
-  P.cards.push(S.current);sortTL(P.cards);
-  S.result={winner:S.turn,okActive:true,bought:true,named:false};S.phase="reveal";save();render();
+function newSong(cost){const P=S.players[S.turn];if(P.tokens<cost)return;P.tokens-=cost;stopAudio();drawNext();S.pick=null;S.played=false;save();render()}
+function buyCard(){
+  const P=S.players[S.turn];if(P.tokens<3)return;P.tokens-=3;stopAudio();
+  S.result={winner:S.turn,okActive:true,bought:true,named:false,before:[...P.cards]};
+  P.cards.push(S.current);sortTL(P.cards);S.phase="reveal";save();render();scrollTo(0,0);
 }
-function toggleChallenger(i){
-  const existing=S.challenges.find(c=>c.p===i);
-  if(existing){S.challenges=S.challenges.filter(c=>c.p!==i);S.players[i].tokens++;S.pickingFor=null}
-  else{S.pickingFor=i}
-  save();render();
-}
-function tapSlot(k){
-  if(S.phase==="listen"||S.phase==="place"){S.pick=k;S.phase="place";save();render();return}
-  if(S.phase==="challenge"&&S.pickingFor!==null){
+function tapGap(k){
+  if(S.phase==="listen"){S.pick=k;save();render();return}
+  if(S.phase==="steal"&&S.pickingFor!==null){
     if(k===S.pick||S.challenges.some(c=>c.slot===k))return;
-    S.players[S.pickingFor].tokens--;
-    S.challenges.push({p:S.pickingFor,slot:k});S.pickingFor=null;save();render();
+    S.players[S.pickingFor].tokens--; S.challenges.push({p:S.pickingFor,slot:k}); S.pickingFor=null; save();render();
   }
 }
-
+function toggleStealer(i){
+  const c=S.challenges.find(x=>x.p===i);
+  if(c){S.challenges=S.challenges.filter(x=>x.p!==i);S.players[i].tokens++;S.pickingFor=null}
+  else S.pickingFor = S.pickingFor===i?null:i;
+  save();render();
+}
 
 // ---------- Hidden in-app audio (30s previews; title never shown) ----------
 const audio=new Audio(); audio.preload="auto";
@@ -268,195 +461,279 @@ async function prepare(i){
 function stopAudio(){try{audio.pause()}catch(e){} audioState="idle"; audioFor=null}
 function togglePlay(){
   if(audioState==="playing"){audio.pause();audioState="ready";refreshPlay();return}
-  if(audioState==="ready"){const p=audio.play();audioState="playing";S.played=true;save();refreshPlay();
+  if(audioState==="ready"){const p=audio.play();audioState="playing";const first=!S.played;S.played=true;save();
+    if(first) render(); else refreshPlay();
     p&&p.catch(()=>{audioState="ready";refreshPlay()})}
 }
 audio.addEventListener("ended",()=>{audioState="ready";refreshPlay()});
 audio.addEventListener("error",()=>{if(audioFor!==null){previewCache[audioFor]=null;audioState="missing";refreshPlay()}});
+const ICON_PLAY='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6c0 .8.9 1.3 1.6.9l10.6-6.8c.6-.4.6-1.4 0-1.8L9.6 4.3C8.9 3.9 8 4.4 8 5.2z"/></svg>';
+const ICON_PAUSE='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4.5" width="4.2" height="15" rx="1.4"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1.4"/></svg>';
 function refreshPlay(){
-  const b=document.getElementById("play"), hint=document.getElementById("hint"), disc=document.querySelector(".mystery .disc");
-  if(!b) return;
-  const L={idle:"Loading…",loading:"Finding the song…",ready:S.played?"Play again":"Play song",playing:"Pause",missing:"Preview unavailable"};
-  b.textContent=L[audioState]; b.disabled=(audioState==="loading"||audioState==="missing"||audioState==="idle");
-  disc&&disc.classList.toggle("spin",audioState==="playing");
-  const fb=document.getElementById("fallback"); fb&&(fb.hidden=audioState!=="missing");
-  if(hint) hint.textContent= audioState==="missing" ? "No preview found. Skip it for free, or play it in Spotify."
-    : audioState==="playing" ? "Listen, then tap a spot in your timeline." : "Tap Play. The title stays hidden.";
+  const b=document.getElementById("play"); if(!b) return;
+  const st=document.getElementById("pstatus"), fb=document.getElementById("fallback");
+  const playing=audioState==="playing";
+  b.innerHTML=playing?ICON_PAUSE:ICON_PLAY;
+  b.setAttribute("aria-label",playing?"Pause":"Play song");
+  b.disabled=!(audioState==="ready"||playing);
+  fb&&(fb.hidden=audioState!=="missing");
+  if(st) st.innerHTML = playing ? '<span class="eq"><i></i><i></i><i></i><i></i></span>Playing a 30-second clip'
+    : ({idle:"Loading the song…",loading:"Loading the song…",ready:S.played?"Tap to hear it again":"Tap play to listen",missing:"No clip found for this song"}[audioState]);
 }
-function freeSkip(){drawNext();S.pick=null;S.played=false;save();render()}
 
-// ---------- Render ----------
-const app=document.getElementById("app");
+// ---------- Render helpers ----------
+let tlScroll=0, tlKey="";
+const CTA_ICON={arrow:'<svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>',check:'<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',play:'<svg class="fill" viewBox="0 0 24 24"><path d="M8 5.5v13c0 .8.9 1.3 1.6.9l10-6.5c.6-.4.6-1.4 0-1.8l-10-6.5C8.9 4.2 8 4.7 8 5.5z"/></svg>',eye:'<svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>',again:'<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></svg>'};
+const cta=(id,label,icon="arrow",disabled=false,ready=false)=>`<button class="cta${ready&&!disabled?" ready":""}" id="${id}" ${disabled?"disabled":""}><span dir="auto">${label}</span><i class="ctaIcon">${CTA_ICON[icon]}</i></button>`;
+const app=document.getElementById("app"), sheet=document.getElementById("sheet");
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const spotifyURL=i=>"https://open.spotify.com/search/"+encodeURIComponent(song(i).t+" "+song(i).a);
+const $=id=>document.getElementById(id);
+const setBg=hex=>{document.documentElement.style.setProperty("--bg",hex);const m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content",hex)};
 
-function render(){
-  if(S.screen==="setup") return renderSetup();
-  if(S.screen==="win") return renderWin();
-  renderGame();
+function gapLabel(tl,k){
+  if(!tl.length) return "Anywhere";
+  const prev=k>0?song(tl[k-1]).y:null, next=k<tl.length?song(tl[k]).y:null;
+  if(prev===null) return `Before ${next}`;
+  if(next===null) return `After ${prev}`;
+  if(prev===next) return `Also ${prev}`;
+  return `${prev} – ${next}`;
+}
+function cardHTML(i,cls=""){const s=song(i);return `<div class="card ${cls}"><span class="y">${s.y}</span><span class="t"><div class="songT" dir="auto">${esc(s.t)}</div><div class="songA" dir="auto">${esc(s.a)}</div></span>${cls.includes("placed")?'<span class="pill">Here</span>':""}</div>`}
+function mysteryCardHTML(label){return `<div class="card mystery"><span class="y"><i class="mdot"></i></span><span class="t"><div class="songT">Mystery song</div><div class="songA" dir="auto">${esc(label)}</div></span></div>`}
+function tagHTML(state,text){const m={ok:"✓",no:"✕",wait:"•"}[state];return `<div class="tag"><span class="mark ${state}">${m}</span><span dir="auto">${text}</span></div>`}
+
+function boardHTML(){
+  return `<header class="top"><div class="board">${S.players.map((p,i)=>`<div class="chip ${i===S.turn&&S.screen==="game"?"on":""}">
+    <span class="dot" style="background:${COLORS[p.c]}"></span><span class="n" dir="auto">${esc(p.name)}</span>
+    <span class="s"><span>${p.cards.length}/${S.target}</span><span><i class="coin"></i>${p.tokens}</span></span></div>`).join("")}</div>
+    <div class="topBtns">${S.screen==="game"?'<button class="quitBtn" id="quit">End</button>':""}<button class="help" id="help" aria-label="How to play">?</button></div></header>`;
+}
+function turnHeadHTML(P,instr){
+  const idx={listen:0,steal:1,reveal:2}[S.phase];
+  const names=["Listen & place","Steal","Reveal"];
+  return `<div class="turnHead">
+    <div class="stepbar">${[0,1,2].map(i=>`<i class="${i<=idx?"on":""}"></i>`).join("")}</div>
+    <span class="eyebrow">Step ${idx+1} of 3 · ${names[idx]}</span>
+    <h2 dir="auto">${esc(P.name)}'s turn</h2>
+    ${instr?`<p class="instr">${instr}</p>`:""}</div>`;
 }
 
+// ---------- Screens ----------
+function render(){
+  if(S.screen==="setup"){setBg(HOME_BG);return renderSetup()}
+  if(S.screen==="win"){setBg(COLORS[S.players[S.winner].c]);return renderWin()}
+  setBg(COLORS[S.players[S.turn].c]);
+  if(S.phase==="pass") return renderPass();
+  renderTurn();
+}
+
+function nextFreeColor(skip){for(let k=1;k<=COLORS.length;k++){const c=(skip+k)%COLORS.length;if(!S.roster.some(r=>r.c===c))return c}return (skip+1)%COLORS.length}
 function renderSetup(){
   const counts={g:GLOBAL.length,i:ISRAELI.length,m:GLOBAL.length+ISRAELI.length};
   app.innerHTML=`
-  <div style="display:flex;flex-direction:column;gap:8px;padding-top:10px">
-    <span class="eyebrow">Music timeline party game</span>
-    <h1>Pass<br>the Hits</h1>
-    <p class="sub">Hear a song. Guess where it falls in time. First to ${S.target} cards wins.</p>
+  <div class="setupHero">
+    <div class="heroTop"><div class="vinyls">${COLORS.slice(0,6).map(c=>`<i style="--c:${c}"></i>`).join("")}</div><button class="help" id="help" aria-label="How to play">?</button></div>
+    <h1>Hit or Miss</h1>
+    <p class="sub">Every song is a hit. Your guess might be a miss.</p>
   </div>
-  <div class="panel">
-    <span class="eyebrow">Song deck</span>
+  <div class="section">
+    <span class="eyebrow">Deck</span>
     <div class="seg" role="group" aria-label="Song deck">
-      ${["g","i","m"].map(p=>`<button id="pack-${p}" aria-pressed="${S.pack===p}" data-pack="${p}">${PACK_LABEL[p]}<br><span style="font-weight:400;font-size:12px;opacity:.75">${counts[p]} songs</span></button>`).join("")}
+      ${["g","i","m"].map(p=>`<button id="pack-${p}" aria-pressed="${S.pack===p}" data-pack="${p}">${PACK_LABEL[p]}<small>${counts[p]} songs</small></button>`).join("")}
     </div>
   </div>
-  <div class="panel">
-    <span class="eyebrow">Players (2–8)</span>
-    <div class="names">
-      ${S.names.map((n,i)=>`<div class="nameRow"><input id="name-${i}" value="${esc(n)}" placeholder="Player ${i+1}" data-name="${i}" dir="auto" maxlength="16"><button aria-label="Remove player" data-del="${i}" ${S.names.length<=2?"disabled":""}>×</button></div>`).join("")}
+  <div class="section grow">
+    <span class="eyebrow">Players · tap a colour to change it</span>
+    <div class="group scrolly">${S.roster.map((r,i)=>`<div class="nameRow">
+      <button class="swatch" style="--c:${COLORS[r.c]}" data-col="${i}" aria-label="Change colour"></button>
+      <input id="name-${i}" value="${esc(r.name)}" placeholder="Player ${i+1}" data-name="${i}" dir="auto" maxlength="14">
+      <button class="iconBtn" aria-label="Remove player" data-del="${i}" ${S.roster.length<=2?"disabled":""}>×</button></div>`).join("")}
+    ${S.roster.length<8?`<button class="addRow" id="addP">+ Add player</button>`:""}</div>
+  </div>
+  <div class="section">
+    <span class="eyebrow">Game length</span>
+    <div class="seg" role="group" aria-label="Game length">
+      ${[[5,"Quick"],[10,"Classic"],[15,"Long"]].map(([n,l])=>`<button aria-pressed="${S.target===n}" data-target="${n}">${l}<small>${n} cards to win</small></button>`).join("")}
     </div>
-    <button class="btn ghost" id="addP" ${S.names.length>=8?"disabled":""}>Add player</button>
   </div>
-  <div class="panel">
-    <span class="eyebrow">Cards to win</span>
-    <div class="stepper"><button id="tMinus" aria-label="Fewer cards">−</button><output>${S.target}</output><button id="tPlus" aria-label="More cards">+</button></div>
-  </div>
-  <div class="panel">
-    <span class="eyebrow">How it works</span>
-    <ul class="rules">
-      <li>Everyone starts with <b>1 card</b> face up and <b>2 tokens</b>.</li>
-      <li>Tap <b>Play</b> to hear a 30-second clip. The title stays hidden until the reveal.</li>
-      <li>Place the mystery song in your timeline. Right spot keeps the card.</li>
-      <li>Others can spend <b>1 token</b> to steal by picking a different spot.</li>
-      <li>Name the title and artist to earn <b>1 token</b> (max 5).</li>
-      <li>Spend 1 token to skip a song, or 3 to buy the card outright.</li>
-    </ul>
-  </div>
-  <button class="btn primary wide" id="start">Start game</button>`;
+  <div class="bar">${cta("start","Start game","play")}</div>`;
   app.querySelectorAll("[data-pack]").forEach(b=>b.onclick=()=>{S.pack=b.dataset.pack;save();render()});
-  app.querySelectorAll("[data-name]").forEach(inp=>inp.oninput=()=>{S.names[+inp.dataset.name]=inp.value;save()});
-  app.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{S.names.splice(+b.dataset.del,1);save();render()});
-  document.getElementById("addP").onclick=()=>{S.names.push("");save();render();const l=document.getElementById("name-"+(S.names.length-1));l&&l.focus()};
-  document.getElementById("tMinus").onclick=()=>{S.target=Math.max(5,S.target-1);save();render()};
-  document.getElementById("tPlus").onclick=()=>{S.target=Math.min(20,S.target+1);save();render()};
-  document.getElementById("start").onclick=startGame;
+  app.querySelectorAll("[data-name]").forEach(inp=>inp.oninput=()=>{S.roster[+inp.dataset.name].name=inp.value;save()});
+  app.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{S.roster.splice(+b.dataset.del,1);save();render()});
+  app.querySelectorAll("[data-col]").forEach(b=>b.onclick=()=>{const r=S.roster[+b.dataset.col];r.c=nextFreeColor(r.c);save();render()});
+  $("addP")&&($("addP").onclick=()=>{S.roster.push({name:"",c:nextFreeColor(S.roster[S.roster.length-1].c)});save();render();const l=$("name-"+(S.roster.length-1));l&&l.focus()});
+  app.querySelectorAll("[data-target]").forEach(b=>b.onclick=()=>{S.target=+b.dataset.target;save();render()});
+  $("start").onclick=startGame; $("help").onclick=openRules;
 }
 
-function boardHTML(){
-  return `<div class="board">${S.players.map((p,i)=>`<div class="chip ${i===S.turn?"on":""}"><span class="n" dir="auto">${esc(p.name)}</span><span class="s"><span><i class="cardsIco"></i>${p.cards.length}/${S.target}</span><span><i class="tok"></i>${p.tokens}</span></span></div>`).join("")}</div>`;
+function renderPass(){
+  const P=S.players[S.turn];
+  app.innerHTML=`${boardHTML()}
+  <div class="center">
+    <div class="disc small"></div>
+    <span class="eyebrow">Pass the phone to</span>
+    <div class="bigName" dir="auto">${esc(P.name)}</div>
+    <div class="stats"><span><b>${P.cards.length}</b> cards</span><span><i class="coin"></i><b>${P.tokens}</b> tokens</span><span><b>${S.target-P.cards.length}</b> to win</span></div>
+  </div>
+  <div class="bar">${cta("go","Start my turn","play",false,true)}</div>`;
+  $("go").onclick=startTurn; $("help").onclick=openRules; wireQuit();
 }
 
-function timelineHTML(P){
-  const tl=P.cards, y=song(S.current).y, rev=S.phase==="reveal";
-  const interactive = S.phase==="listen"||S.phase==="place"||(S.phase==="challenge"&&S.pickingFor!==null);
-  const slot=k=>{
-    let cls="",label="Place here";
-    const ch=S.challenges.find(c=>c.slot===k);
-    if(S.pick===k){cls="picked";label=esc(P.name)+"'s pick"}
-    else if(ch){cls="taken";label=esc(S.players[ch.p].name)+"'s steal"}
-    const show = interactive || cls;
-    if(!show) return `<div class="slot"><div class="line"></div></div>`;
-    const dis = !interactive || (S.phase==="challenge" && (S.pick===k||ch));
-    return `<div class="slot"><button data-slot="${k}" class="${cls}" ${dis?"disabled":""}>${label}</button></div>`;
-  };
-  if(rev){
-    // After reveal, show the finished timeline (card inserted if won) without slots
-    return `<div class="timeline">${tl.map(c=>`<div class="slot"><div class="line"></div></div>${cardHTML(c,c===S.current)}`).join("")}<div class="slot"><div class="line"></div></div></div>`;
-  }
-  let h="";
-  for(let k=0;k<=tl.length;k++){h+=slot(k); if(k<tl.length) h+=cardHTML(tl[k],false)}
-  return `<div class="timeline">${h}</div>`;
-}
-function cardHTML(i,isNew){const s=song(i);return `<div class="card ${isNew?"new":""}"><span class="y">${s.y}</span><span class="t"><div class="songT" dir="auto">${esc(s.t)}</div><div class="songA" dir="auto">${esc(s.a)}</div></span></div>`}
+function renderTurn(){
+  const P=S.players[S.turn], tl=P.cards;
+  { const old=document.getElementById("tl"); if(old && tlKey===S.turn+":"+S.phase+":"+S.current) tlScroll=old.scrollTop; }
+  let instr="", stage="", timeline="", bar="", tlTitle=`${esc(P.name)}'s timeline`;
 
-function renderGame(){
-  const P=S.players[S.turn], s=song(S.current);
-  let stage="";
-  if(S.phase==="listen"||S.phase==="place"){
+  if(S.phase==="listen"){
+    instr = !S.played ? "Press play and listen."
+          : S.pick===null ? "When was it released? Tap a gap in your timeline."
+          : "Happy with that spot? Lock it in, or tap another gap.";
     stage=`
-    <div class="mystery">
-      <div class="disc"></div>
-      <div class="meta"><span class="eyebrow">Mystery song</span><span class="q">????</span><span class="hint" id="hint">Tap Play. The title stays hidden.</span></div>
+    <div class="record glassy">
+      <button class="playBtn" id="play" aria-label="Play song" disabled>${ICON_PLAY}</button>
+      <span class="status" id="pstatus">Loading the song…</span>
     </div>
-    <button class="btn hot wide" id="play" disabled>Loading…</button>
-    <div class="row" id="fallback" hidden>
-      <button class="btn ghost" id="freeSkip">Skip free</button>
-      <a class="btn ghost" href="${spotifyURL(S.current)}" target="_blank" rel="noopener">Open in Spotify</a>
+    <div class="fallback" id="fallback" hidden>
+      <button class="btn soft small" id="freeSkip">Skip (free)</button>
+      <a class="btn soft small" href="${spotifyURL(S.current)}" target="_blank" rel="noopener">Open Spotify</a>
     </div>
-    ${S.phase==="place"?`<button class="btn primary wide" id="lock">Lock in my spot</button>`:""}
-    <div class="row">
-      <button class="btn ghost" id="skip" ${P.tokens<1?"disabled":""}>Skip song · 1 token</button>
-      <button class="btn ghost" id="buy" ${P.tokens<3?"disabled":""}>Buy card · 3 tokens</button>
+    <div class="tools">
+      <button class="btn soft small" id="skip" ${P.tokens<1?"disabled":""}>Skip · <i class="coin"></i>1</button>
+      <button class="btn soft small" id="buy" ${P.tokens<3?"disabled":""}>Buy card · <i class="coin"></i>3</button>
     </div>`;
-  } else if(S.phase==="challenge"){
-    const others=S.players.map((p,i)=>({p,i})).filter(o=>o.i!==S.turn);
-    const free=P.cards.length+1-1-S.challenges.length;
-    stage=`
-    <div class="notice">
-      <span class="eyebrow">Steal round</span>
-      <span>Think ${esc(P.name)} is wrong? Spend 1 token and pick a different spot. First correct steal wins the card.</span>
-    </div>
-    <div class="steal">
-      <div class="who">${others.map(({p,i})=>{const c=S.challenges.find(x=>x.p===i);const can=c||(p.tokens>0&&free>0);return `<button data-ch="${i}" aria-pressed="${!!c||S.pickingFor===i}" ${can?"":"disabled"} dir="auto">${esc(p.name)} <i class="tok"></i>${p.tokens}</button>`}).join("")}</div>
-      ${S.pickingFor!==null?`<span class="sub">${esc(S.players[S.pickingFor].name)}, tap a spot in the timeline below. <button class="linkish" id="cancelPick">Cancel</button></span>`:""}
-    </div>
-    <button class="btn primary wide" id="reveal">Reveal the year</button>`;
-  } else if(S.phase==="reveal"){
-    const r=S.result, wName=r.winner!==null?S.players[r.winner].name:null;
-    let msg, tone;
-    if(r.bought){msg=`${esc(P.name)} bought the card.`;tone="good"}
-    else if(r.okActive){msg=`${esc(P.name)} nailed it. The card goes in the timeline.`;tone="good"}
-    else if(wName){msg=`${esc(P.name)} missed. ${esc(wName)} steals the card!`;tone="bad"}
-    else {msg=`Wrong spot. The card is discarded.`;tone="bad"}
-    stage=`
-    <div class="mystery reveal">
-      <div class="disc"></div>
-      <div class="meta"><span class="q">${s.y}</span><span class="songT" dir="auto">${esc(s.t)}</span><span class="songA" dir="auto">${esc(s.a)}</span></div>
-    </div>
-    <div class="notice ${tone}">${msg}</div>
-    ${r.bought?"":`<div class="notice"><span>Did ${esc(P.name)} name the title and artist?</span>
-      <div class="row"><button class="btn ${r.named?"primary":"ghost"}" id="namedY">Yes · +1 token</button><button class="btn ${r.named?"ghost":"primary"}" id="namedN">No</button></div></div>`}
-    <a class="btn ghost wide" href="${spotifyURL(S.current)}" target="_blank" rel="noopener">Hear the full song in Spotify</a>
-    <button class="btn primary wide" id="next">Next player</button>`;
+    let h="";
+    for(let k=tl.length;k>=0;k--){
+      h += S.pick===k ? mysteryCardHTML("Your pick")
+                      : `<button class="gap" data-gap="${k}"><span class="plus">+</span>${gapLabel(tl,k)}</button>`;
+      if(k>0) h+=cardHTML(tl[k-1]);
+    }
+    timeline=h;
+    bar= S.pick===null ? cta("lock","Pick a gap in your timeline","check",true)
+                       : cta("lock",`Lock in · ${esc(gapLabel(tl,S.pick))}`,"check",false,true);
   }
-  const tlOwner = S.phase==="reveal"&&S.result.winner!==null?S.players[S.result.winner]:P;
-  app.innerHTML=`
-    ${boardHTML()}
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <span class="eyebrow">${PACK_LABEL[S.pack]} deck · ${S.deck.length} songs left</span>
-      <h2 dir="auto">${esc(P.name)}'s turn</h2>
-    </div>
-    <div class="stage">${stage}</div>
-    <div class="tlHead"><span class="eyebrow" dir="auto">${esc(tlOwner.name)}'s timeline</span><span class="eyebrow">${tlOwner.cards.length} cards</span></div>
-    ${timelineHTML(tlOwner)}
-    <button class="linkish" id="quit">End game and return to setup</button>`;
-  // wire
-  const $=id=>document.getElementById(id);
+
+  else if(S.phase==="steal"){
+    const others=S.players.map((p,i)=>({p,i})).filter(o=>o.i!==S.turn);
+    const openGaps=tl.length-S.challenges.length;
+    instr = S.pickingFor!==null ? `${esc(S.players[S.pickingFor].name)}, tap the gap you think is right.`
+          : `Think ${esc(P.name)} is wrong? Spend a token to steal.`;
+    stage=`
+      <div class="who">${others.map(({p,i})=>{const c=S.challenges.find(x=>x.p===i);const can=c||(p.tokens>0&&openGaps>0);
+        return `<button data-st="${i}" aria-pressed="${!!c||S.pickingFor===i}" ${can?"":"disabled"} dir="auto"><span class="dot" style="background:${COLORS[p.c]}"></span>${esc(p.name)}${c?" ✓":""} · <i class="coin"></i>${p.tokens}</button>`}).join("")}</div>
+      <p class="note">Tap your name, then a different gap. If ${esc(P.name)} misses and you're right, the card is yours. Tap again to cancel.</p>`;
+    let h="";
+    for(let k=tl.length;k>=0;k--){
+      const c=S.challenges.find(x=>x.slot===k);
+      if(S.pick===k) h+=mysteryCardHTML(P.name+"'s pick");
+      else if(c) h+=tagHTML("wait",`${esc(S.players[c.p].name)}'s steal · ${gapLabel(tl,k)}`);
+      else if(S.pickingFor!==null) h+=`<button class="gap" data-gap="${k}"><span class="plus">+</span>${gapLabel(tl,k)}</button>`;
+      else h+=`<div class="gap quiet"></div>`;
+      if(k>0) h+=cardHTML(tl[k-1]);
+    }
+    timeline=h;
+    bar= S.pickingFor!==null ? cta("reveal","Pick a gap to steal","eye",true)
+                             : cta("reveal",S.challenges.length?"Reveal the answer":"No steals · reveal","eye",false,true);
+  }
+
+  else {
+    const r=S.result, s=song(S.current), wName=r.winner!==null?S.players[r.winner].name:null;
+    let badge,head,line;
+    if(r.bought){badge="ok";head="Card bought";line=`${esc(P.name)} traded 3 tokens for it.`}
+    else if(r.okActive){badge="ok";head="Correct!";line=`It joins ${esc(P.name)}'s timeline.`}
+    else if(wName){badge="st";head=`${esc(wName)} steals it`;line=`${esc(P.name)} missed this one.`}
+    else {badge="no";head="Not quite";line="Nobody gets this card."}
+    stage=`
+      <div class="result">
+        <div class="verdict"><span class="badge ${badge}">${badge==="no"?"✕":badge==="st"?"↯":"✓"}</span><div><b dir="auto">${head}</b><span dir="auto">${line}</span></div></div>
+        <div class="song"><span class="y">${s.y}</span><div><div class="songT" dir="auto">${esc(s.t)}</div><div class="songA" dir="auto">${esc(s.a)}</div><a class="inlineLink" href="${spotifyURL(S.current)}" target="_blank" rel="noopener">Play full song ↗</a></div></div>
+      </div>
+      ${r.bought?"":`<div class="ask"><p dir="auto">Bonus: did ${esc(P.name)} name the song and the artist?</p>
+        <div class="choice"><button id="nY" aria-pressed="${r.named===true}">Yes · +1 <i class="coin"></i></button><button id="nN" aria-pressed="${r.named===false}">No</button></div></div>`}
+`;
+    const before=r.before, y=s.y; let shown=false, h="";
+    for(let k=before.length;k>=0;k--){
+      const ok=slotOK(before,k,y);
+      if(ok&&!shown){shown=true;h+=cardHTML(S.current,"placed")}
+      if(S.pick===k&&!r.bought) h+=tagHTML(ok?"ok":"no",`${esc(P.name)}'s pick`);
+      const c=S.challenges.find(x=>x.slot===k);
+      if(c) h+=tagHTML(ok?"ok":"no",`${esc(S.players[c.p].name)}'s steal`);
+      if(k>0) h+=cardHTML(before[k-1]);
+    }
+    timeline=h; tlTitle="Where it belongs";
+    const last=S.players.some(p=>p.cards.length>=S.target);
+    const need=!r.bought&&r.named===null;
+    bar= need ? cta("next","Answer the bonus first","arrow",true)
+              : cta("next",last?"See the winner":`Next: ${esc(S.players[(S.turn+1)%S.players.length].name)}`,"arrow",false,true);
+  }
+
+  app.innerHTML=`${boardHTML()}
+    ${turnHeadHTML(P,instr)}
+    ${stage}
+    <div class="tlWrap"><div class="tlHead"><span class="eyebrow" dir="auto">${tlTitle}</span><span class="eyebrow">Newest on top · ${tl.length} card${tl.length===1?"":"s"}</span></div>
+    <div class="timeline" id="tl">${timeline}</div></div>
+    <div class="bar">${bar}</div>`;
+
+  const tlEl=$("tl"), key=S.turn+":"+S.phase+":"+S.current;
+  if(tlKey===key) tlEl.scrollTop=tlScroll;
+  else { tlScroll=0; const pl=tlEl.querySelector(".card.placed"); if(pl) tlEl.scrollTop=Math.max(0,pl.offsetTop-60); }
+  tlKey=key; tlEl.onscroll=()=>{tlScroll=tlEl.scrollTop};
+  $("help").onclick=openRules; wireQuit();
   if($("play")){$("play").onclick=togglePlay; prepare(S.current); refreshPlay();}
-  $("freeSkip")&&($("freeSkip").onclick=()=>{stopAudio();freeSkip()});
-  $("lock")&&($("lock").onclick=lockIn);
-  $("skip")&&($("skip").onclick=skipSong);
+  $("freeSkip")&&($("freeSkip").onclick=()=>newSong(0));
+  $("skip")&&($("skip").onclick=()=>newSong(1));
   $("buy")&&($("buy").onclick=buyCard);
+  $("lock")&&($("lock").onclick=lockIn);
   $("reveal")&&($("reveal").onclick=reveal);
-  $("cancelPick")&&($("cancelPick").onclick=()=>{S.pickingFor=null;save();render()});
-  $("namedY")&&($("namedY").onclick=()=>{S.result.named=true;save();render()});
-  $("namedN")&&($("namedN").onclick=()=>{S.result.named=false;save();render()});
+  $("nY")&&($("nY").onclick=()=>{S.result.named=true;save();render()});
+  $("nN")&&($("nN").onclick=()=>{S.result.named=false;save();render()});
   $("next")&&($("next").onclick=nextTurn);
-  app.querySelectorAll("[data-slot]").forEach(b=>b.onclick=()=>tapSlot(+b.dataset.slot));
-  app.querySelectorAll("[data-ch]").forEach(b=>b.onclick=()=>toggleChallenger(+b.dataset.ch));
-  let armed=false;
-  $("quit").onclick=e=>{if(!armed){armed=true;e.target.textContent="Tap again to end the game";return}S={screen:"setup",names:S.names,pack:S.pack,target:S.target};save();render()};
+  app.querySelectorAll("[data-gap]").forEach(b=>b.onclick=()=>tapGap(+b.dataset.gap));
+  app.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>toggleStealer(+b.dataset.st));
 }
 
 function renderWin(){
-  app.innerHTML=`<div class="win">
-    <div class="disc spin" style="width:140px;height:140px"></div>
+  const W=S.players[S.winner];
+  app.innerHTML=`${boardHTML()}<div class="center">
+    <div class="disc spin"></div>
     <span class="eyebrow">Winner</span>
-    <div class="big" dir="auto">${esc(S.winnerName)}</div>
-    <p class="sub">${S.target} cards in the timeline. Rematch?</p>
-    <button class="btn primary wide" id="again">Play again</button>
-  </div>`;
-  document.getElementById("again").onclick=()=>{S={screen:"setup",names:S.names,pack:S.pack,target:S.target};startGame()};
+    <div class="bigName" dir="auto">${esc(W.name)}</div>
+    <p class="sub">${W.cards.length} songs in the timeline.</p></div>
+    <div class="bar">${cta("again","Rematch","again",false,true)}<button class="linkish" id="setup">Change players or deck</button></div>`;
+  $("help").onclick=openRules;
+  $("again").onclick=()=>{S={...keep(),screen:"setup"};startGame()};
+  $("setup").onclick=()=>{S={...keep(),screen:"setup"};save();render()};
+}
+
+function wireQuit(){
+  const q=$("quit"); if(!q) return; let t=null;
+  q.onclick=()=>{
+    if(!q.classList.contains("armed")){q.classList.add("armed");q.textContent="End game?";t=setTimeout(()=>{q.classList.remove("armed");q.textContent="End"},3000);return}
+    clearTimeout(t); stopAudio(); S={...keep(),screen:"setup"}; save(); render();
+  };
+}
+
+function openRules(){
+  sheet.innerHTML=`<div class="inner" role="dialog" aria-modal="true" aria-labelledby="rt">
+    <h3 id="rt">How to play</h3>
+    <ol>
+      <li>Everyone starts with <b>one song card</b> showing its year. That's your timeline.</li>
+      <li>On your turn, press <b>play</b>. The title stays hidden.</li>
+      <li>Tap the gap where you think the song belongs, then <b>lock it in</b>.</li>
+      <li>Others can <b>steal</b> by spending a token on a different gap.</li>
+      <li>Right gap: the card is yours. Wrong: the first correct stealer takes it.</li>
+      <li>First to <b>${S.target} cards</b> wins. A same-year neighbour counts as correct.</li>
+    </ol>
+    <div class="tokRules">
+      <b><i class="coin"></i>Tokens</b>
+      <span>Start with 2, hold up to 5.</span>
+      <span>Earn 1 by naming the song and artist on your turn.</span>
+      <span>Spend 1 to steal or skip a song, or 3 to buy the card without guessing.</span>
+    </div>
+    <button class="btn wide" id="closeRules">Got it</button></div>`;
+  sheet.hidden=false;
+  $("closeRules").onclick=()=>{sheet.hidden=true};
+  sheet.onclick=e=>{if(e.target===sheet) sheet.hidden=true};
 }
 
 render();
